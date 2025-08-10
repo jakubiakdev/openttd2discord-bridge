@@ -1,0 +1,25 @@
+{
+  "name": "openttd2discord-bridge",
+  "version": "1.0.0",
+  "description": "Bridge chat messages along Discord and OpenTTD",
+  "homepage": "https://github.com/jakubiakdev/openttd2discord-bridge#readme",
+  "bugs": {
+    "url": "https://github.com/jakubiakdev/openttd2discord-bridge/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jakubiakdev/openttd2discord-bridge.git"
+  },
+  "license": "GPL-3.0-or-later",
+  "author": "jakubiakdev",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "discord.js": "^14.21.0",
+    "node-openttd-admin": "^0.2.4"
+  },
+  "devDependencies": {}
+}
