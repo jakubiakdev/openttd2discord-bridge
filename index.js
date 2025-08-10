@@ -2,7 +2,8 @@ var ottd = require("node-openttd-admin"),
     ottdConnection = new ottd.connection();
 
 const { loadEnvFile } = require('node:process');
-loadEnvFile();
+// load .env but don't error out if it doesn't exist (docker)
+try { loadEnvFile() } catch {}
 
 const { Client, Events, GatewayIntentBits } = require('discord.js');
 const discordClient = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMessages] });
