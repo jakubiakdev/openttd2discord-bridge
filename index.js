@@ -4,7 +4,7 @@ var ottd = require("node-openttd-admin"),
 const { loadEnvFile } = require('node:process');
 loadEnvFile();
 
-const { Client, Events, GatewayIntentBits } = require('discord.js');
+const { Client, Events, GatewayIntentBits, EmbedBuilder } = require('discord.js');
 const discordClient = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMessages] });
 
 ottdConnection.connect(process.env.OTTD_HOST, process.env.OTTD_PORT);
@@ -73,6 +73,85 @@ ottdConnection.on("clientinfo", (data) => {
 
 });
 
+let raceConditionHell = { econ: undefined, stats: undefined, info: undefined };
+let raceCodnitionAskedForIt = false
+
+function trySendingCompanyInfo() {
+    if (raceConditionHell.econ && raceConditionHell.info && raceConditionHell.stats) {
+        if (discordClient.isReady() && raceCodnitionAskedForIt) {
+            let embed = new EmbedBuilder()
+                .setTimestamp()
+                .setFooter({ text: "OpenTTD" })
+                .setFields(
+                    { name: "Company Info", value: raceConditionHell.info, inline: true },
+                    { name: "Company Stats", value: raceConditionHell.stats, inline: true },
+                    { name: "Company Economy", value: raceConditionHell.econ, inline: true }
+                )
+            discordClient.channels.cache.get(process.env.DISCORD_CHANNEL).send({ embeds: [embed] });
+        }
+        raceConditionHell = { econ: undefined, stats: undefined, info: undefined } // reset after sending
+        raceCodnitionAskedForIt = false
+    }
+}
+
+ottdConnection.on('companyeconomy', function (data) {
+    console.log("Company economy: " + JSON.stringify(data, null, 2));
+    raceConditionHell.econ = `
+- **Money**: ${data.money}
+- **Loan**: ${data.loan}
+- **Income**: ${data.income}
+- **Cargo**: ${data.cargo}
+- **Last quarter**:
+  - **Value**: ${data.lastquarter.value}
+  - **Perofrmance**: ${data.lastquarter.performance}
+  - **Cargo**: ${data.lastquarter.cargo}
+- **Previous quarter**:
+  - **Value**: ${data.prevquarter.value}
+  - **Performance**: ${data.prevquarter.performance}
+  - **Cargo**: ${data.prevquarter.cargo}
+    `
+
+    trySendingCompanyInfo();
+});
+ottdConnection.on('companyinfo', function (data) {
+    console.log("Company info: " + JSON.stringify(data, null, 2));
+    const colourNames = [
+            "Dark Blue", "Pale Green", "Pink", "Yellow", "Red", "Light Blue", "Green", "Dark Green",
+            "Blue", "Cream", "Mauve", "Purple", "Orange", "Brown", "Grey", "White", "Black"
+    ];
+    raceConditionHell.info = `
+- **Name**: ${data.name} 
+- **ID**: #${data.id}
+- **Manager**: ${data.manager}
+- **Onwed by ai**: ${data.ai ? "Yes" : "No"}
+- **Founded**: ${data.startyear}
+- **Color**: ${colourNames[data.colour]}
+- **Protected**: ${data.protected ? "Yes" : "No"}
+    `
+
+    trySendingCompanyInfo();
+});
+ottdConnection.on('companystats', function (data) {
+    console.log("Company stats: " + JSON.stringify(data, null, 2));
+    raceConditionHell.stats = `
+- **Vechicles**: (${data.vehicles.trains + data.vehicles.lorries + data.vehicles.busses + data.vehicles.planes + data.vehicles.ships})
+  - **Trains**: ${data.vehicles.trains}
+  - **Lorries**: ${data.vehicles.lorries}
+  - **Buses**: ${data.vehicles.busses}
+  - **Planes**: ${data.vehicles.planes}
+  - **Ships**: ${data.vehicles.ships}
+- **Stations**: (${data.stations.trains + data.stations.lorries + data.stations.busses + data.stations.planes + data.stations.ships})
+  - **Trains**: ${data.stations.trains}
+  - **Lorries**: ${data.stations.lorries}
+  - **Buses**: ${data.stations.busses}
+  - **Airports**: ${data.stations.planes}
+  - **Docks**: ${data.stations.ships} 
+    `
+
+    trySendingCompanyInfo();
+});
+
+
 
 discordClient.once(Events.ClientReady, readyClient => {
     console.log(`Ready! Logged in as ${readyClient.user.tag}`);
@@ -80,7 +159,23 @@ discordClient.once(Events.ClientReady, readyClient => {
 });
 
 discordClient.on(Events.MessageCreate, message => {
+    if (message.channel.id != process.env.DISCORD_CHANNEL) return;
     if (message.author.bot) return;
+    if (message.content.startsWith(process.env.DISCORD_CMD_STATS)) {
+
+        let arguments = message.content.split(" ")
+        console.log(arguments)
+        console.log(arguments[1])
+        if (arguments[1] == undefined) {
+            discordClient.channels.cache.get(process.env.DISCORD_CHANNEL).send(`Correct usage: \`${process.env.DISCORD_CMD_STATS} <company_id>\``);
+            return
+        }
+        console.log(arguments)
+        raceCodnitionAskedForIt = true;
+        ottdConnection.send_poll(ottd.enums.UpdateTypes.COMPANY_INFO, arguments[1]);
+        ottdConnection.send_poll(ottd.enums.UpdateTypes.COMPANY_ECONOMY, arguments[1]);
+        ottdConnection.send_poll(ottd.enums.UpdateTypes.COMPANY_STATS, arguments[1]);
+    }
     ottdConnection.send_chat(3, 0, 0, `${message.author.username}: ${message.content}`);
 });
 
